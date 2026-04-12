@@ -7,6 +7,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Darker, calmer blues (UI palette)
+        brandBlue: {
+          50: '#dce8f2',
+          100: '#c2d4e6',
+          200: '#a3bdd4',
+          300: '#7d9fbe',
+          400: '#5b82a8',
+          500: '#3f6a90',
+          600: '#325a7c',
+          700: '#2a4a68',
+          800: '#243d57',
+          900: '#1f3449',
+        },
         // Cradle dark theme - deep space aesthetic (required for interaction panels)
         forge: {
           bg: '#050508',

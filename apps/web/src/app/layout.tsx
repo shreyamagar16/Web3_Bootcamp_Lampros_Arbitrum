@@ -18,7 +18,7 @@ import { Providers } from './providers';
     }) {
       return (
         <html lang="en" suppressHydrationWarning>
-          <body className={inter.className}>
+          <body className={`${inter.className} min-h-screen antialiased text-[15px] text-slate-900`}>
             <Providers>
               {children}
             </Providers>

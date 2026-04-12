@@ -175,6 +175,28 @@ function getLogoForNetwork(net: (typeof NETWORK_IDS)[number], logos?: ChainLogos
   return undefined;
 }
 
+/** Card shell — compact tiles, darker blue accents */
+const BOX =
+  'rounded-xl border border-brandBlue-300 bg-white p-4 shadow-md shadow-brandBlue-900/10';
+
+const INPUT =
+  'w-full rounded-lg border border-brandBlue-300 bg-brandBlue-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-brandBlue-600 focus:outline-none focus:ring-2 focus:ring-brandBlue-400/35';
+
+const BTN =
+  'w-full rounded-lg py-2.5 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50';
+
+/** Write: 4 cols on xl → rows of 4 + 3. Read: one row of 4 on xl. */
+const GRID_WRITE =
+  'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:items-stretch';
+const GRID_READ =
+  'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:items-stretch';
+
+/** Operation tile: shorter min height, action pinned to bottom */
+const OP_CARD =
+  'flex h-full min-h-[19rem] flex-col gap-3 xl:min-h-[21rem]';
+const OP_MAIN = 'flex min-h-0 flex-1 flex-col gap-3';
+const OP_FOOTER = 'mt-auto shrink-0 pt-0.5';
+
 export function ERC721InteractionPanel({
   contractAddress: initialAddress,
   network: initialNetwork = 'arbitrum-sepolia',
@@ -628,104 +650,129 @@ export function ERC721InteractionPanel({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="p-3 rounded-lg border border-violet-500/30 bg-gradient-to-r from-violet-500/10 to-transparent">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-4 h-4 text-violet-400" />
-          <span className="text-sm font-medium text-white">
-            {collectionName || 'ERC-721'} {collectionSymbol ? `(${collectionSymbol})` : 'NFT'}
-          </span>
-        </div>
-        <p className="text-[10px] text-forge-muted">Stylus NFT Contract Interaction</p>
-      </div>
-
-      {/* Wallet Status */}
-      <div className={cn(
-        'p-2.5 rounded-lg border',
-        walletConnected ? 'border-green-500/30 bg-green-500/5' : 'border-amber-500/30 bg-amber-500/5'
-      )}>
-        <div className="flex items-center gap-2">
-          <Wallet className={cn('w-3.5 h-3.5', walletConnected ? 'text-green-400' : 'text-amber-400')} />
-          {walletConnected ? (
-            <span className="text-[10px] text-green-300">
-              Connected: <code className="text-green-400">{userAddress?.slice(0, 6)}...{userAddress?.slice(-4)}</code>
+    <div className="w-full space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          className={cn(
+            BOX,
+            'border-brandBlue-400 bg-gradient-to-br from-brandBlue-100/80 via-white to-white'
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 shrink-0 text-brandBlue-700" />
+            <span className="text-base font-semibold text-slate-900">
+              {collectionName || 'ERC-721'} {collectionSymbol ? `(${collectionSymbol})` : 'NFT'}
             </span>
-          ) : (
-            <span className="text-[10px] text-amber-300">Connect wallet via Wallet Auth node for write ops</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-600">Stylus NFT contract</p>
+          {isConnected && walletConnected && (
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-brandBlue-300 bg-brandBlue-50/90 px-3 py-2">
+              <div className="flex items-center gap-1.5">
+                <Image className="h-4 w-4 text-brandBlue-700" />
+                <span className="text-xs font-medium text-slate-700">Your NFTs</span>
+              </div>
+              <span className="text-base font-bold text-brandBlue-900">{userBalance || '0'}</span>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Network Selector */}
-      <div className="space-y-1.5">
-        <label className="text-xs text-forge-muted flex items-center gap-1.5">
-          <Globe className="w-3 h-3" /> Network
-        </label>
-        <Select value={selectedNetwork} onValueChange={(value) => setSelectedNetwork(value as typeof selectedNetwork)}>
-          <SelectTrigger className="w-full">
-            <SelectValue>
-              <div className="flex items-center gap-2">
-                {getLogoForNetwork(selectedNetwork, logos) && (
-                  <img src={getLogoForNetwork(selectedNetwork, logos)} alt="" width={16} height={16} className="rounded" />
-                )}
-                <span>{NETWORKS[selectedNetwork].name}</span>
-                {NETWORKS[selectedNetwork].chain.testnet && (
-                  <span className="text-[8px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">Testnet</span>
-                )}
-              </div>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {NETWORK_IDS.map((net) => (
-              <SelectItem key={net} value={net}>
+        <div
+          className={cn(
+            BOX,
+            walletConnected
+              ? 'border-emerald-400/80 bg-emerald-50/50'
+              : 'border-amber-400/80 bg-amber-50/50'
+          )}
+        >
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Wallet</p>
+          <div className="flex items-start gap-2">
+            <Wallet
+              className={cn('mt-0.5 h-5 w-5 shrink-0', walletConnected ? 'text-emerald-700' : 'text-amber-700')}
+            />
+            {walletConnected ? (
+              <span className="text-sm text-slate-800">
+                Connected{' '}
+                <code className="font-mono text-emerald-800">
+                  {userAddress?.slice(0, 6)}...{userAddress?.slice(-4)}
+                </code>
+              </span>
+            ) : (
+              <span className="text-sm text-slate-700">
+                Connect your wallet to run write operations.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={cn(BOX, 'sm:col-span-2 xl:col-span-1')}>
+          <label className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <Globe className="h-4 w-4 text-brandBlue-700" /> Network
+          </label>
+          <Select value={selectedNetwork} onValueChange={(value) => setSelectedNetwork(value as typeof selectedNetwork)}>
+            <SelectTrigger className="h-10 w-full text-sm">
+              <SelectValue>
                 <div className="flex items-center gap-2">
-                  {getLogoForNetwork(net, logos) && (
-                    <img src={getLogoForNetwork(net, logos)} alt="" width={16} height={16} className="rounded" />
+                  {getLogoForNetwork(selectedNetwork, logos) && (
+                    <img src={getLogoForNetwork(selectedNetwork, logos)} alt="" width={16} height={16} className="rounded" />
                   )}
-                  <span>{NETWORKS[net].name}</span>
-                  {NETWORKS[net].chain.testnet && (
-                    <span className="text-[8px] px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded">Testnet</span>
+                  <span>{NETWORKS[selectedNetwork].name}</span>
+                  {NETWORKS[selectedNetwork].chain.testnet && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">Testnet</span>
                   )}
                 </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {NETWORK_IDS.map((net) => (
+                <SelectItem key={net} value={net}>
+                  <div className="flex items-center gap-2">
+                    {getLogoForNetwork(net, logos) && (
+                      <img src={getLogoForNetwork(net, logos)} alt="" width={16} height={16} className="rounded" />
+                    )}
+                    <span>{NETWORKS[net].name}</span>
+                    {NETWORKS[net].chain.testnet && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">Testnet</span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Contract Info */}
-      <div className="p-2.5 rounded-lg bg-forge-bg/50 border border-forge-border/30">
-        <div className="flex items-center justify-between">
+      <div className={cn(BOX, 'space-y-3')}>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Contract</p>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-brandBlue-300 bg-brandBlue-100/50 px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-forge-muted">Contract:</span>
+            <span className="text-xs text-slate-600">Contract:</span>
             {isUsingDefaultContract && (
-              <span className="text-[8px] px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded">Default</span>
+              <span className="rounded bg-brandBlue-300 px-1.5 py-0.5 text-[10px] font-semibold text-brandBlue-900">Default</span>
             )}
           </div>
           <a
             href={`${displayExplorerUrl}/address/${contractAddress}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[10px] font-mono text-violet-400 hover:underline flex items-center gap-1"
+            className="flex items-center gap-1 text-xs font-mono font-medium text-brandBlue-800 hover:underline"
           >
             {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
-            <ExternalLink className="w-2.5 h-2.5" />
+            <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
-      </div>
 
       {/* Custom Contract Toggle */}
       <button
+        type="button"
         onClick={() => setShowCustomContract(!showCustomContract)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-forge-bg/50 border border-forge-border/30 rounded-lg text-xs text-forge-muted hover:text-white transition-colors"
+        className="flex w-full items-center justify-between rounded-lg border border-brandBlue-300 bg-brandBlue-50 px-3 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-brandBlue-100"
       >
-        <span>Use Custom Contract</span>
-        {showCustomContract ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        <span>Use custom contract</span>
+        {showCustomContract ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
 
       {showCustomContract && (
-        <div className="p-3 rounded-lg bg-forge-bg/30 border border-forge-border/30 space-y-2">
+        <div className="space-y-2 rounded-lg border border-brandBlue-300 bg-brandBlue-50/70 p-3">
           <input
             type="text"
             value={customAddress}
@@ -735,45 +782,49 @@ export function ERC721InteractionPanel({
             }}
             placeholder="0x..."
             className={cn(
-              "w-full px-3 py-2 bg-forge-bg border rounded-lg text-xs text-white placeholder-forge-muted focus:outline-none",
-              customAddressError ? "border-red-500/50" : "border-forge-border/50 focus:border-violet-500/50"
+              INPUT,
+              customAddressError && 'border-red-400 focus:border-red-500 focus:ring-red-200'
             )}
           />
           {customAddressError && (
-            <p className="text-[10px] text-red-400 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {customAddressError}
+            <p className="flex items-center gap-1.5 text-xs text-red-600">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {customAddressError}
             </p>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
+              type="button"
               onClick={handleUseCustomContract}
               disabled={!customAddress || isValidatingContract}
-              className="flex-1 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded text-[10px] font-medium disabled:opacity-50 flex items-center justify-center gap-1"
+              className={cn(BTN, 'flex flex-1 items-center justify-center gap-1.5 bg-brandBlue-700 hover:bg-brandBlue-600')}
             >
               {isValidatingContract ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin" /> Validating...
+                  <Loader2 className="h-4 w-4 animate-spin" /> Validating...
                 </>
               ) : (
-                'Use Custom'
+                'Use custom'
               )}
             </button>
             <button
+              type="button"
               onClick={handleUseDefaultContract}
-              className="flex-1 py-1.5 bg-forge-border hover:bg-forge-muted/20 text-white rounded text-[10px] font-medium"
+              className={cn(BTN, 'flex-1 bg-slate-500 hover:bg-slate-600')}
             >
-              Reset to Default
+              Reset to default
             </button>
           </div>
         </div>
       )}
 
       <button
+        type="button"
         onClick={fetchNFTInfo}
-        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-medium transition-colors"
+        className={cn(BTN, 'flex items-center justify-center gap-1.5 bg-brandBlue-700 hover:bg-brandBlue-600')}
       >
-        <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        <RefreshCw className="h-4 w-4" /> Refresh contract data
       </button>
+      </div>
 
       {/* Contract Error Banner */}
       {/* {contractError && (
@@ -797,254 +848,291 @@ export function ERC721InteractionPanel({
       {/* Transaction Status */}
       {txStatus.status !== 'idle' && (
         <div className={cn(
-          'rounded-lg p-2.5 border flex items-start gap-2',
-          txStatus.status === 'pending' && 'bg-blue-500/10 border-blue-500/30',
-          txStatus.status === 'success' && 'bg-emerald-500/10 border-emerald-500/30',
-          txStatus.status === 'error' && 'bg-red-500/10 border-red-500/30'
+          BOX,
+          'flex items-start gap-3',
+          txStatus.status === 'pending' && 'border-brandBlue-500 bg-brandBlue-100/60',
+          txStatus.status === 'success' && 'border-emerald-500 bg-emerald-50',
+          txStatus.status === 'error' && 'border-red-400 bg-red-50'
         )}>
-          {txStatus.status === 'pending' && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />}
-          {txStatus.status === 'success' && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-          {txStatus.status === 'error' && <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
-          <div className="flex-1 min-w-0">
+          {txStatus.status === 'pending' && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brandBlue-700" />}
+          {txStatus.status === 'success' && <Check className="h-5 w-5 shrink-0 text-emerald-700" />}
+          {txStatus.status === 'error' && <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />}
+          <div className="min-w-0 flex-1">
             <p className={cn(
-              'text-[10px] font-medium truncate',
-              txStatus.status === 'pending' && 'text-blue-300',
-              txStatus.status === 'success' && 'text-emerald-300',
-              txStatus.status === 'error' && 'text-red-300'
+              'text-sm font-medium',
+              txStatus.status === 'pending' && 'text-brandBlue-900',
+              txStatus.status === 'success' && 'text-emerald-900',
+              txStatus.status === 'error' && 'text-red-900'
             )}>{txStatus.message}</p>
             {txStatus.hash && (
               <a href={`${explorerUrl}/tx/${txStatus.hash}`} target="_blank" rel="noopener noreferrer"
-                className="text-[9px] text-forge-muted hover:text-white flex items-center gap-1">
-                Explorer <ExternalLink className="w-2.5 h-2.5" />
+                className="mt-1 flex items-center gap-1 text-xs text-brandBlue-800 hover:underline">
+                View on explorer <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
           </div>
         </div>
       )}
 
-      {/* NFT Stats */}
+      {/* Write Operations — xl: 4 columns → 4 + 3 rows */}
       {isConnected && walletConnected && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-2.5 rounded-lg bg-forge-bg/50 border border-forge-border/30">
-            <div className="flex items-center gap-1.5">
-              <Image className="w-3 h-3 text-violet-400" />
-              <span className="text-[10px] text-forge-muted">Your NFTs</span>
-            </div>
-            <span className="text-xs font-medium text-white">{userBalance || '0'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Write Operations */}
-      {isConnected && walletConnected && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Send className="w-3.5 h-3.5 text-violet-400" />
-            <span className="text-xs font-medium text-white">Write Operations</span>
-          </div>
-
+        <div className="space-y-4">
+          <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
+            <Send className="h-5 w-5 text-brandBlue-800" />
+            Write operations
+          </h2>
+          <div className={GRID_WRITE}>
           {/* Mint (to self) */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-violet-400" />
-              <span className="text-[10px] font-medium text-violet-400">Mint (to yourself)</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Sparkles className="h-5 w-5 text-brandBlue-700" />
+              <span className="text-base font-semibold text-slate-900">Mint (to yourself)</span>
             </div>
-            <button onClick={handleMint} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Mint NFT
-            </button>
+            <div className={OP_MAIN}>
+              <p className="text-xs text-slate-600">Create one NFT in your connected wallet.</p>
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleMint} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}>
+                Mint NFT
+              </button>
+            </div>
           </div>
 
           {/* Mint To */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-fuchsia-400" />
-              <span className="text-[10px] font-medium text-fuchsia-400">Mint To Address</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Sparkles className="h-5 w-5 text-brandBlue-600" />
+              <span className="text-base font-semibold text-slate-900">Mint to address</span>
             </div>
-            <input type="text" value={mintToAddress} onChange={(e) => setMintToAddress(e.target.value)}
-              placeholder="To Address (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={handleMintTo} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Mint To
-            </button>
+            <div className={OP_MAIN}>
+              <input type="text" value={mintToAddress} onChange={(e) => setMintToAddress(e.target.value)}
+                placeholder="To address (0x...)"
+                className={INPUT} />
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleMintTo} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-600 hover:bg-brandBlue-500')}>
+                Mint to
+              </button>
+            </div>
           </div>
 
           {/* Safe Mint */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Shield className="w-3 h-3 text-emerald-400" />
-              <span className="text-[10px] font-medium text-emerald-400">Safe Mint</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Shield className="h-5 w-5 text-brandBlue-700" />
+              <span className="text-base font-semibold text-slate-900">Safe mint</span>
             </div>
-            <input type="text" value={safeMintToAddress} onChange={(e) => setSafeMintToAddress(e.target.value)}
-              placeholder="To Address (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={handleSafeMint} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Safe Mint
-            </button>
+            <div className={OP_MAIN}>
+              <input type="text" value={safeMintToAddress} onChange={(e) => setSafeMintToAddress(e.target.value)}
+                placeholder="To address (0x...)"
+                className={INPUT} />
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleSafeMint} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}>
+                Safe mint
+              </button>
+            </div>
           </div>
 
           {/* Safe Transfer */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <span className="text-[10px] font-medium text-cyan-400">Safe Transfer</span>
-            <input type="text" value={transferFrom} onChange={(e) => setTransferFrom(e.target.value)}
-              placeholder="From (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <input type="text" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}
-              placeholder="To (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <input type="number" value={transferTokenId} onChange={(e) => setTransferTokenId(e.target.value)}
-              placeholder="Token ID"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={handleTransfer} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Transfer NFT
-            </button>
+          <div className={cn(BOX, OP_CARD)}>
+            <span className="shrink-0 text-base font-semibold text-slate-900">Safe transfer</span>
+            <div className={OP_MAIN}>
+              <input type="text" value={transferFrom} onChange={(e) => setTransferFrom(e.target.value)}
+                placeholder="From (0x...)"
+                className={INPUT} />
+              <input type="text" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}
+                placeholder="To (0x...)"
+                className={INPUT} />
+              <input type="number" value={transferTokenId} onChange={(e) => setTransferTokenId(e.target.value)}
+                placeholder="Token ID"
+                className={INPUT} />
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleTransfer} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-800 hover:bg-brandBlue-700')}>
+                Transfer NFT
+              </button>
+            </div>
           </div>
 
           {/* Approve */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Shield className="w-3 h-3 text-blue-400" />
-              <span className="text-[10px] font-medium text-blue-400">Approve Token</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Shield className="h-5 w-5 text-brandBlue-700" />
+              <span className="text-base font-semibold text-slate-900">Approve token</span>
             </div>
-            <input type="text" value={approveAddress} onChange={(e) => setApproveAddress(e.target.value)}
-              placeholder="Approved Address (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <input type="number" value={approveTokenId} onChange={(e) => setApproveTokenId(e.target.value)}
-              placeholder="Token ID"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={handleApprove} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Approve
-            </button>
+            <div className={OP_MAIN}>
+              <input type="text" value={approveAddress} onChange={(e) => setApproveAddress(e.target.value)}
+                placeholder="Approved address (0x...)"
+                className={INPUT} />
+              <input type="number" value={approveTokenId} onChange={(e) => setApproveTokenId(e.target.value)}
+                placeholder="Token ID"
+                className={INPUT} />
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleApprove} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}>
+                Approve
+              </button>
+            </div>
           </div>
 
           {/* Set Approval For All */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3 text-indigo-400" />
-              <span className="text-[10px] font-medium text-indigo-400">Set Approval For All</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-brandBlue-800" />
+              <span className="text-base font-semibold text-slate-900">Set approval for all</span>
             </div>
-            <input type="text" value={operatorAddress} onChange={(e) => setOperatorAddress(e.target.value)}
-              placeholder="Operator (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={operatorApproved} onChange={(e) => setOperatorApproved(e.target.checked)}
-                className="w-3.5 h-3.5 rounded bg-forge-bg border-forge-border" />
-              <span className="text-[10px] text-forge-muted">Grant Approval</span>
-            </label>
-            <button onClick={handleSetApprovalForAll} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              {operatorApproved ? 'Grant' : 'Revoke'} Access
-            </button>
+            <div className={OP_MAIN}>
+              <input type="text" value={operatorAddress} onChange={(e) => setOperatorAddress(e.target.value)}
+                placeholder="Operator (0x...)"
+                className={INPUT} />
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={operatorApproved} onChange={(e) => setOperatorApproved(e.target.checked)}
+                  className="h-4 w-4 rounded border border-brandBlue-400 text-brandBlue-700 focus:ring-brandBlue-500" />
+                Grant approval
+              </label>
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleSetApprovalForAll} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-brandBlue-900 hover:bg-brandBlue-800')}>
+                {operatorApproved ? 'Grant' : 'Revoke'} access
+              </button>
+            </div>
           </div>
 
           {/* Burn */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Flame className="w-3 h-3 text-orange-400" />
-              <span className="text-[10px] font-medium text-orange-400">Burn NFT</span>
+          <div className={cn(BOX, OP_CARD, 'border-red-300/90 bg-red-50/40')}>
+            <div className="flex shrink-0 items-center gap-2">
+              <Flame className="h-5 w-5 text-red-700" />
+              <span className="text-base font-semibold text-slate-900">Burn NFT</span>
             </div>
-            <input type="number" value={burnTokenId} onChange={(e) => setBurnTokenId(e.target.value)}
-              placeholder="Token ID"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={handleBurn} disabled={txStatus.status === 'pending'}
-              className="w-full py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded text-[10px] font-medium disabled:opacity-50">
-              Burn
-            </button>
+            <div className={OP_MAIN}>
+              <input type="number" value={burnTokenId} onChange={(e) => setBurnTokenId(e.target.value)}
+                placeholder="Token ID"
+                className={INPUT} />
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={handleBurn} disabled={txStatus.status === 'pending'}
+                className={cn(BTN, 'bg-red-600 hover:bg-red-500')}>
+                Burn
+              </button>
+            </div>
+          </div>
           </div>
         </div>
       )}
 
-      {/* Read Operations */}
+      {/* Read Operations — xl: single row of 4 */}
       {isConnected && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <User className="w-3.5 h-3.5 text-purple-400" />
-            <span className="text-xs font-medium text-white">Read Operations</span>
-          </div>
-
+        <div className="space-y-4">
+          <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
+            <User className="h-5 w-5 text-brandBlue-800" />
+            Read operations
+          </h2>
+          <div className={GRID_READ}>
           {/* Owner Of */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <span className="text-[10px] font-medium text-violet-400">Owner Of</span>
-            <input type="number" value={ownerOfTokenId} onChange={(e) => setOwnerOfTokenId(e.target.value)}
-              placeholder="Token ID"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={checkOwnerOf}
-              className="w-full py-1.5 bg-violet-600/50 hover:bg-violet-600 text-white rounded text-[10px] font-medium">
-              Check Owner
-            </button>
-            {ownerOfResult && (
-              <div className="p-2 bg-violet-500/10 border border-violet-500/30 rounded">
-                <p className="text-[9px] text-violet-300 mb-0.5">Owner:</p>
-                <p className="text-[10px] font-mono text-white break-all">{ownerOfResult}</p>
-              </div>
-            )}
+          <div className={cn(BOX, OP_CARD)}>
+            <span className="shrink-0 text-base font-semibold text-slate-900">Owner of</span>
+            <div className={cn(OP_MAIN, 'overflow-y-auto')}>
+              <input type="number" value={ownerOfTokenId} onChange={(e) => setOwnerOfTokenId(e.target.value)}
+                placeholder="Token ID"
+                className={INPUT} />
+              {ownerOfResult && (
+                <div className="rounded-lg border border-brandBlue-300 bg-brandBlue-100/60 p-2">
+                  <p className="text-[10px] font-semibold uppercase text-brandBlue-900">Owner</p>
+                  <p className="mt-0.5 break-all font-mono text-xs text-slate-900">{ownerOfResult}</p>
+                </div>
+              )}
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={checkOwnerOf}
+                className={cn(BTN, 'bg-brandBlue-600 hover:bg-brandBlue-500')}>
+                Check owner
+              </button>
+            </div>
           </div>
 
           {/* Balance Of */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <span className="text-[10px] font-medium text-fuchsia-400">Balance Of</span>
-            <input type="text" value={balanceCheckAddress} onChange={(e) => setBalanceCheckAddress(e.target.value)}
-              placeholder="Address (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={checkBalance}
-              className="w-full py-1.5 bg-fuchsia-600/50 hover:bg-fuchsia-600 text-white rounded text-[10px] font-medium">
-              Check Balance
-            </button>
-            {balanceCheckResult && (
-              <div className="p-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded">
-                <p className="text-[10px] text-fuchsia-300">NFTs owned: <span className="font-medium text-white">{balanceCheckResult}</span></p>
-              </div>
-            )}
+          <div className={cn(BOX, OP_CARD)}>
+            <span className="shrink-0 text-base font-semibold text-slate-900">Balance of</span>
+            <div className={cn(OP_MAIN, 'overflow-y-auto')}>
+              <input type="text" value={balanceCheckAddress} onChange={(e) => setBalanceCheckAddress(e.target.value)}
+                placeholder="Address (0x...)"
+                className={INPUT} />
+              {balanceCheckResult && (
+                <div className="rounded-lg border border-brandBlue-300 bg-brandBlue-100/60 p-2">
+                  <p className="text-xs text-slate-800">
+                    NFTs owned: <span className="font-bold text-brandBlue-900">{balanceCheckResult}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={checkBalance}
+                className={cn(BTN, 'bg-brandBlue-600 hover:bg-brandBlue-500')}>
+                Check balance
+              </button>
+            </div>
           </div>
 
           {/* Get Approved */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <span className="text-[10px] font-medium text-blue-400">Get Approved</span>
-            <input type="number" value={getApprovedTokenId} onChange={(e) => setGetApprovedTokenId(e.target.value)}
-              placeholder="Token ID"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={checkGetApproved}
-              className="w-full py-1.5 bg-blue-600/50 hover:bg-blue-600 text-white rounded text-[10px] font-medium">
-              Check Approved
-            </button>
-            {getApprovedResult && (
-              <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded">
-                <p className="text-[9px] text-blue-300 mb-0.5">Approved:</p>
-                <p className="text-[10px] font-mono text-white break-all">{getApprovedResult}</p>
-              </div>
-            )}
+          <div className={cn(BOX, OP_CARD)}>
+            <span className="shrink-0 text-base font-semibold text-slate-900">Get approved</span>
+            <div className={cn(OP_MAIN, 'overflow-y-auto')}>
+              <input type="number" value={getApprovedTokenId} onChange={(e) => setGetApprovedTokenId(e.target.value)}
+                placeholder="Token ID"
+                className={INPUT} />
+              {getApprovedResult && (
+                <div className="rounded-lg border border-brandBlue-300 bg-brandBlue-100/60 p-2">
+                  <p className="text-[10px] font-semibold uppercase text-brandBlue-900">Approved</p>
+                  <p className="mt-0.5 break-all font-mono text-xs text-slate-900">{getApprovedResult}</p>
+                </div>
+              )}
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={checkGetApproved}
+                className={cn(BTN, 'bg-brandBlue-600 hover:bg-brandBlue-500')}>
+                Check approved
+              </button>
+            </div>
           </div>
 
           {/* Is Approved For All */}
-          <div className="p-3 rounded-lg bg-forge-bg/50 border border-forge-border/30 space-y-2">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3 text-indigo-400" />
-              <span className="text-[10px] font-medium text-indigo-400">Is Approved For All</span>
+          <div className={cn(BOX, OP_CARD)}>
+            <div className="flex shrink-0 items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-brandBlue-800" />
+              <span className="text-base font-semibold text-slate-900">Is approved for all</span>
             </div>
-            <input type="text" value={approvalCheckOwner} onChange={(e) => setApprovalCheckOwner(e.target.value)}
-              placeholder="Owner (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <input type="text" value={approvalCheckOperator} onChange={(e) => setApprovalCheckOperator(e.target.value)}
-              placeholder="Operator (0x...)"
-              className="w-full px-2.5 py-1.5 bg-forge-bg border border-forge-border/50 rounded text-xs text-white placeholder-forge-muted focus:outline-none" />
-            <button onClick={checkApprovalForAll}
-              className="w-full py-1.5 bg-indigo-600/50 hover:bg-indigo-600 text-white rounded text-[10px] font-medium">
-              Check Approval
-            </button>
-            {approvalCheckResult !== null && (
-              <div className={cn(
-                'p-2 rounded border',
-                approvalCheckResult ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'
-              )}>
-                <p className={cn('text-[10px] font-medium', approvalCheckResult ? 'text-emerald-300' : 'text-red-300')}>
-                  {approvalCheckResult ? '✓ Operator is approved' : '✗ Operator is not approved'}
-                </p>
-              </div>
-            )}
+            <div className={cn(OP_MAIN, 'overflow-y-auto')}>
+              <input type="text" value={approvalCheckOwner} onChange={(e) => setApprovalCheckOwner(e.target.value)}
+                placeholder="Owner (0x...)"
+                className={INPUT} />
+              <input type="text" value={approvalCheckOperator} onChange={(e) => setApprovalCheckOperator(e.target.value)}
+                placeholder="Operator (0x...)"
+                className={INPUT} />
+              {approvalCheckResult !== null && (
+                <div className={cn(
+                  'rounded-lg border p-2',
+                  approvalCheckResult ? 'border-emerald-400 bg-emerald-50' : 'border-red-300 bg-red-50'
+                )}>
+                  <p className={cn('text-xs font-semibold', approvalCheckResult ? 'text-emerald-900' : 'text-red-900')}>
+                    {approvalCheckResult ? '✓ Operator is approved' : '✗ Operator is not approved'}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className={OP_FOOTER}>
+              <button type="button" onClick={checkApprovalForAll}
+                className={cn(BTN, 'bg-brandBlue-600 hover:bg-brandBlue-500')}>
+                Check approval
+              </button>
+            </div>
+          </div>
           </div>
         </div>
       )}

@@ -15,16 +15,16 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex items-center justify-between w-full h-10 text-sm px-3 rounded-lg bg-forge-bg text-white border border-forge-border transition-all duration-150',
-      'hover:border-forge-border-strong focus:outline-none focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20',
-      'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&>span[data-placeholder]]:text-forge-muted',
+      'flex h-10 w-full items-center justify-between rounded-lg border border-brandBlue-400 bg-white px-3 text-sm text-slate-900 transition-all duration-150',
+      'hover:border-brandBlue-500 focus:outline-none focus:border-brandBlue-600 focus:ring-2 focus:ring-brandBlue-400/40',
+      'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 [&>span[data-placeholder]]:text-slate-400',
       className
     )}
     {...props}
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 text-forge-muted shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+      <ChevronDown className="h-4 w-4 shrink-0 text-brandBlue-700 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -38,7 +38,7 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        'relative z-[9999] overflow-hidden min-w-[8rem] max-h-96 bg-forge-surface rounded-xl border border-forge-border shadow-xl shadow-black/40',
+        'relative z-[9999] max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-brandBlue-400 bg-white shadow-lg shadow-brandBlue-900/15',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2',
         className
@@ -46,13 +46,13 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectPrimitive.ScrollUpButton className="flex items-center justify-center h-6 cursor-default bg-forge-surface text-forge-muted">
+      <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center bg-brandBlue-100 text-brandBlue-800">
         <ChevronUp className="h-4 w-4" />
       </SelectPrimitive.ScrollUpButton>
       <SelectPrimitive.Viewport className="p-1.5">
         {children}
       </SelectPrimitive.Viewport>
-      <SelectPrimitive.ScrollDownButton className="flex items-center justify-center h-6 cursor-default bg-forge-surface text-forge-muted">
+      <SelectPrimitive.ScrollDownButton className="flex h-6 cursor-default items-center justify-center bg-brandBlue-100 text-brandBlue-800">
         <ChevronDown className="h-4 w-4" />
       </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
@@ -67,15 +67,15 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex items-center w-full py-2 pl-8 pr-2 rounded-lg text-sm text-white cursor-pointer select-none transition-colors duration-100',
-      'outline-none focus:bg-forge-hover focus:text-white hover:bg-forge-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-forge-hover',
+      'relative flex w-full cursor-pointer select-none items-center rounded-md py-2 pl-8 pr-2 text-sm text-slate-900 transition-colors duration-100',
+      'outline-none hover:bg-brandBlue-100 focus:bg-brandBlue-200/80 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-brandBlue-200/80',
       className
     )}
     {...props}
   >
     <span className="absolute left-2 flex h-4 w-4 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-accent-cyan" />
+        <Check className="h-3.5 w-3.5 text-brandBlue-700" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
