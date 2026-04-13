@@ -29,18 +29,18 @@ EIP-2981 Royalties
 
 
 Changes Overall: 
-Path	                                                Type	      Change Description
+Path	> Type	> Change Description
 
-src/app/page.tsx	                                    Frontend	  Token Studio selector added
-contracts/contracts/erc721/src/lib.rs	                Backend	    Upgraded smart contract logic
-contracts/contracts/erc1155/	                        Backend	    New contract added
-contracts/contracts/erc20/	                          Backend	    New contract added
-contracts/contracts/eip2981/	                        Backend	    New contract added
-src/components/TokenStudioLanding.tsx                 Frontend	  New component created
-src/components/ERC20Panel.tsx	                        Frontend	  New → Updated implementation
-src/components/ERC1155Panel.tsx                      	Frontend	  New → Updated implementation
-src/components/EIP2981Panel.tsx	                      Frontend	  New → Updated implementation
-src/lib/erc721-stylus/src/ERC721InteractionPanel.tsx	Frontend	  Upgraded interaction panel
-src/lib/erc1155/	                                    Frontend	  New module added
-src/lib/erc20/	                                      Frontend	  New module added
-src/lib/eip2981/	                                    Frontend	  New module added
+src/app/page.tsx > Frontend	>  Token Studio selector added
+contracts/contracts/erc721/src/lib.rs	> Backend	> Upgraded smart contract logic
+contracts/contracts/erc1155/ > Backend	> New contract added
+contracts/contracts/erc20/ > Backend	> New contract added
+contracts/contracts/eip2981/	> Backend	> New contract added
+src/components/TokenStudioLanding.tsx > Frontend	> New component created
+src/components/ERC20Panel.tsx	 > Frontend	> New → Updated implementation
+src/components/ERC1155Panel.tsx > Frontend	> New → Updated implementation
+src/components/EIP2981Panel.tsx	 > Frontend	 > New → Updated implementation
+src/lib/erc721-stylus/src/ERC721InteractionPanel.tsx	> Frontend	>  Upgraded interaction panel
+src/lib/erc1155/ > Frontend	 >  New module added
+src/lib/erc20/	> Frontend	> New module added
+src/lib/eip2981/	> Frontend	> New module added
