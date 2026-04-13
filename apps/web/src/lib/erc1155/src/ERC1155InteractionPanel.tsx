@@ -1268,6 +1268,7 @@ export function ERC1155InteractionPanel({
             )}
           </div>
 
+          {walletConnected && (
           <div className="space-y-4">
             <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
               <Shield className="h-5 w-5 text-brandBlue-800" />
@@ -1413,6 +1414,7 @@ export function ERC1155InteractionPanel({
               </div>
             </div>
           </div>
+          )}
         </>
       )}
 

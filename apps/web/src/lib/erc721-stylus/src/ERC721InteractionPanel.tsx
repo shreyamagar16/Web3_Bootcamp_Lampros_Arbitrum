@@ -800,35 +800,40 @@ export function ERC721InteractionPanel({
       if (!contract || !contractAddress) return;
 
       const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const contractWithProvider = new ethers.Contract(contractAddress, ERC721_ABI, provider);
-      const filter = contractWithProvider.filters.Transfer(ethers.ZeroAddress, null, null);
 
-      let events: ethers.EventLog[];
+      // ERC-721 Transfer event topic: Transfer(address,address,uint256)
+      const transferTopic = ethers.id('Transfer(address,address,uint256)');
+      // Mint events: from = ZeroAddress (padded to 32 bytes)
+      const zeroAddressTopic = ethers.zeroPadValue(ethers.ZeroAddress, 32);
+
+      let rawLogs: ethers.Log[] = [];
       try {
-        events = (await contractWithProvider.queryFilter(filter, -10000)) as ethers.EventLog[];
+        rawLogs = await provider.getLogs({
+          address: contractAddress,
+          topics: [transferTopic, zeroAddressTopic],
+          fromBlock: -10000,
+        });
       } catch {
         try {
-          events = (await contractWithProvider.queryFilter(filter, 0, 'latest')) as ethers.EventLog[];
+          rawLogs = await provider.getLogs({
+            address: contractAddress,
+            topics: [transferTopic, zeroAddressTopic],
+            fromBlock: 0,
+          });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
-          setGalleryError(
-            `Could not load Transfer events from the RPC (tried last 10,000 blocks and full history). ${msg || 'Try another network or RPC.'}`
-          );
-          setGalleryTokens([]);
-          return;
+          throw new Error(`Could not fetch transfer events: ${msg}`);
         }
       }
 
+      // Parse token IDs from the third topic (indexed uint256)
       const tokenIds = [
         ...new Set(
-          events.map((e) => {
-            const ev = e as ethers.EventLog;
-            const args = ev.args as readonly unknown[] | undefined;
-            const id = args?.[2];
-            return id != null ? String(id) : '';
-          })
+          rawLogs
+            .filter((log) => log.topics.length > 3 && log.topics[3] != null)
+            .map((log) => BigInt(log.topics[3] as string).toString())
         ),
-      ].filter(Boolean).slice(0, 20);
+      ].slice(0, 20);
 
       const tokens = await Promise.all(
         tokenIds.map(async (id) => {
