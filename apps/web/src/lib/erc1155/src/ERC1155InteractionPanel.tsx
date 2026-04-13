@@ -154,7 +154,6 @@ export function ERC1155InteractionPanel({
   );
   const [showCustomContract, setShowCustomContract] = useState(false);
   const [customAddress, setCustomAddress] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
   const [nextTokenId, setNextTokenId] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<TxStatus>({ status: 'idle', message: '' });
   const [customAddressError, setCustomAddressError] = useState<string | null>(null);
@@ -342,9 +341,7 @@ export function ERC1155InteractionPanel({
       setNextTokenId(next.toString());
       const p = await contract.isPaused().catch(() => null);
       setIsPausedState(typeof p === 'boolean' ? p : null);
-      setIsConnected(true);
     } catch {
-      setIsConnected(false);
       setNextTokenId(null);
       setIsPausedState(null);
     }
@@ -673,6 +670,16 @@ export function ERC1155InteractionPanel({
         </button>
       </div>
 
+      {!contractAddress && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+          <span>
+            <span className="font-semibold">No contract address set.</span> Paste a deployed contract address
+            using &quot;Use custom contract&quot; above to interact with it, or deploy a new one first.
+          </span>
+        </div>
+      )}
+
       {walletConnected && currentChain?.id !== networkConfig.chainId && (
         <div className="flex items-center gap-3 rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 shadow-sm">
           <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
@@ -728,8 +735,7 @@ export function ERC1155InteractionPanel({
         </div>
       )}
 
-      {isConnected && (
-        <div className={cn(BOX, 'space-y-3')}>
+      <div className={cn(BOX, 'space-y-3')}>
           <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
             <Layers className="h-5 w-5 text-brandBlue-800" />
             Token explorer
@@ -747,6 +753,7 @@ export function ERC1155InteractionPanel({
             </div>
             <button
               type="button"
+              disabled={!contractAddress}
               onClick={() => void loadToken()}
               className={cn(BTN, 'shrink-0 bg-brandBlue-700 hover:bg-brandBlue-600 sm:w-40')}
             >
@@ -786,9 +793,8 @@ export function ERC1155InteractionPanel({
             </div>
           )}
         </div>
-      )}
 
-      {isConnected && walletConnected && (
+      {walletConnected && (
         <>
           <div className="space-y-4">
             <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
@@ -820,7 +826,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const read = getReadContract();
@@ -862,7 +868,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const read = getReadContract();
@@ -914,7 +920,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -969,7 +975,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1030,7 +1036,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1085,7 +1091,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1131,7 +1137,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1287,7 +1293,7 @@ export function ERC1155InteractionPanel({
                 <div className={cn(OP_FOOTER, 'flex gap-2')}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1306,7 +1312,7 @@ export function ERC1155InteractionPanel({
                   </button>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1340,7 +1346,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1382,7 +1388,7 @@ export function ERC1155InteractionPanel({
                 <div className={OP_FOOTER}>
                   <button
                     type="button"
-                    disabled={txStatus.status === 'pending'}
+                    disabled={!contractAddress || txStatus.status === 'pending'}
                     onClick={async () => {
                       try {
                         const c = await getWriteContract();
@@ -1410,8 +1416,7 @@ export function ERC1155InteractionPanel({
         </>
       )}
 
-      {isConnected && (
-        <div className="space-y-4">
+      <div className="space-y-4">
           <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
             <User className="h-5 w-5 text-brandBlue-800" />
             Read operations
@@ -1441,6 +1446,7 @@ export function ERC1155InteractionPanel({
               <div className={OP_FOOTER}>
                 <button
                   type="button"
+                  disabled={!contractAddress}
                   onClick={async () => {
                     const c = getReadContract();
                     if (!c || !readBalAddr) return;
@@ -1484,6 +1490,7 @@ export function ERC1155InteractionPanel({
               <div className={OP_FOOTER}>
                 <button
                   type="button"
+                  disabled={!contractAddress}
                   onClick={async () => {
                     const c = getReadContract();
                     if (!c || !batchBalAddr) return;
@@ -1532,6 +1539,7 @@ export function ERC1155InteractionPanel({
               <div className={OP_FOOTER}>
                 <button
                   type="button"
+                  disabled={!contractAddress}
                   onClick={async () => {
                     const c = getReadContract();
                     if (!c) return;
@@ -1566,6 +1574,7 @@ export function ERC1155InteractionPanel({
               <div className={OP_FOOTER}>
                 <button
                   type="button"
+                  disabled={!contractAddress}
                   onClick={async () => {
                     const c = getReadContract();
                     if (!c) return;
@@ -1584,7 +1593,6 @@ export function ERC1155InteractionPanel({
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 }

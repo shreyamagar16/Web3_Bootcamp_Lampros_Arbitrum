@@ -84,6 +84,7 @@ const ERC721_ABI = [
   "function symbol() view returns (string)",
   "function balanceOf(address owner) view returns (uint256)",
   "function ownerOf(uint256 token_id) view returns (address)",
+  "function tokenURI(uint256 token_id) view returns (string)",
   "function safeTransferFrom(address from, address to, uint256 token_id, bytes data)",
   "function safeTransferFrom(address from, address to, uint256 token_id)",
   "function transferFrom(address from, address to, uint256 token_id)",
@@ -278,6 +279,13 @@ export function ERC721InteractionPanel({
   const [showAdminUnlockForm, setShowAdminUnlockForm] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminUnlockError, setAdminUnlockError] = useState<string | null>(null);
+
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryTokens, setGalleryTokens] = useState<
+    Array<{ id: string; owner: string; metadata: Record<string, unknown> | null; imageUrl: string | null }>
+  >([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
 
   // Check if using the default contract for the selected network
   const defaultAddress = DEFAULT_CONTRACT_ADDRESSES[selectedNetwork];
@@ -772,6 +780,105 @@ export function ERC721InteractionPanel({
       console.error('Error:', error);
     }
   };
+
+  const fetchWithTimeout = async (url: string, timeoutMs: number): Promise<Response> => {
+    const ac = new AbortController();
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => {
+        ac.abort();
+        reject(new Error('timeout'));
+      }, timeoutMs)
+    );
+    return Promise.race([fetch(url, { signal: ac.signal }), timeout]);
+  };
+
+  const loadGallery = useCallback(async () => {
+    setGalleryLoading(true);
+    setGalleryError(null);
+    try {
+      const contract = getReadContract();
+      if (!contract || !contractAddress) return;
+
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const contractWithProvider = new ethers.Contract(contractAddress, ERC721_ABI, provider);
+      const filter = contractWithProvider.filters.Transfer(ethers.ZeroAddress, null, null);
+
+      let events: ethers.EventLog[];
+      try {
+        events = (await contractWithProvider.queryFilter(filter, -10000)) as ethers.EventLog[];
+      } catch {
+        try {
+          events = (await contractWithProvider.queryFilter(filter, 0, 'latest')) as ethers.EventLog[];
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setGalleryError(
+            `Could not load Transfer events from the RPC (tried last 10,000 blocks and full history). ${msg || 'Try another network or RPC.'}`
+          );
+          setGalleryTokens([]);
+          return;
+        }
+      }
+
+      const tokenIds = [
+        ...new Set(
+          events.map((e) => {
+            const ev = e as ethers.EventLog;
+            const args = ev.args as readonly unknown[] | undefined;
+            const id = args?.[2];
+            return id != null ? String(id) : '';
+          })
+        ),
+      ].filter(Boolean).slice(0, 20);
+
+      const tokens = await Promise.all(
+        tokenIds.map(async (id) => {
+          try {
+            const owner = await contract.ownerOf(id).catch(() => null);
+            if (!owner || owner === ethers.ZeroAddress) return null;
+
+            let metadata: Record<string, unknown> | null = null;
+            let imageUrl: string | null = null;
+
+            try {
+              const uri = await contract.tokenURI(id).catch(() => null);
+              if (uri && typeof uri === 'string') {
+                const httpUri = uri.startsWith('ipfs://')
+                  ? uri.replace('ipfs://', 'https://nftstorage.link/ipfs/')
+                  : uri;
+                let res: Response;
+                if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+                  res = await fetch(httpUri, { signal: AbortSignal.timeout(5000) });
+                } else {
+                  res = await fetchWithTimeout(httpUri, 5000);
+                }
+                if (res.ok) {
+                  metadata = (await res.json()) as Record<string, unknown>;
+                  const img = metadata?.image;
+                  if (typeof img === 'string') {
+                    imageUrl = img.startsWith('ipfs://')
+                      ? img.replace('ipfs://', 'https://nftstorage.link/ipfs/')
+                      : img;
+                  }
+                }
+              }
+            } catch {
+              /* metadata optional */
+            }
+
+            return { id, owner: String(owner), metadata, imageUrl };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      setGalleryTokens(tokens.filter(Boolean) as Array<{ id: string; owner: string; metadata: Record<string, unknown> | null; imageUrl: string | null }>);
+    } catch (e: unknown) {
+      setGalleryError(e instanceof Error ? e.message : 'Failed to load gallery');
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, [getReadContract, contractAddress, rpcUrl]);
 
   return (
     <div className="w-full space-y-5">
@@ -1608,6 +1715,110 @@ export function ERC721InteractionPanel({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {isConnected && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowGallery(!showGallery);
+              if (!showGallery && galleryTokens.length === 0) void loadGallery();
+            }}
+            className="flex w-full items-center justify-between rounded-xl border border-brandBlue-400 bg-white/85 px-4 py-3 text-left shadow-md transition-colors hover:bg-brandBlue-50"
+          >
+            <div className="flex items-center gap-2">
+              <Image className="h-5 w-5 text-brandBlue-700" />
+              <span className="text-base font-semibold text-brandBlue-900">NFT Gallery</span>
+              {galleryTokens.length > 0 && (
+                <span className="rounded-full bg-brandBlue-200 px-2 py-0.5 text-xs font-medium text-brandBlue-900">
+                  {galleryTokens.length}
+                </span>
+              )}
+            </div>
+            {showGallery ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+
+          {showGallery && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">
+                  Showing minted NFTs from last 10,000 blocks. Max 20.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadGallery()}
+                  disabled={galleryLoading}
+                  className="flex items-center gap-1.5 rounded-lg border border-brandBlue-300 bg-white px-3 py-1.5 text-xs font-medium text-brandBlue-800 hover:bg-brandBlue-50 disabled:opacity-50"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', galleryLoading && 'animate-spin')} /> Refresh
+                </button>
+              </div>
+
+              {galleryLoading && (
+                <div className="flex items-center justify-center rounded-xl border border-brandBlue-200 bg-white/60 py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-brandBlue-600" />
+                </div>
+              )}
+
+              {galleryError && (
+                <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  {galleryError}
+                </div>
+              )}
+
+              {!galleryLoading && galleryTokens.length === 0 && !galleryError && (
+                <div className="rounded-xl border border-brandBlue-200 bg-white/60 py-12 text-center text-sm text-slate-500">
+                  No NFTs found in recent blocks.
+                </div>
+              )}
+
+              {!galleryLoading && galleryTokens.length > 0 && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+                  {galleryTokens.map((token) => {
+                    const metaName = token.metadata?.name;
+                    const title =
+                      typeof metaName === 'string' ? metaName : `#${token.id}`;
+                    return (
+                      <div key={token.id} className={cn(BOX, 'flex flex-col gap-2 p-3')}>
+                        <div className="aspect-square w-full overflow-hidden rounded-lg border border-brandBlue-200 bg-brandBlue-50">
+                          {token.imageUrl ? (
+                            <img
+                              src={token.imageUrl}
+                              alt={`NFT #${token.id}`}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <Image className="h-8 w-8 text-brandBlue-300" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{title}</p>
+                          <p className="mt-0.5 truncate font-mono text-[10px] text-slate-500">
+                            {token.owner.slice(0, 6)}...{token.owner.slice(-4)}
+                          </p>
+                        </div>
+                        <a
+                          href={`${explorerUrl}/token/${contractAddress}?a=${token.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] text-brandBlue-700 hover:underline"
+                        >
+                          View <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
