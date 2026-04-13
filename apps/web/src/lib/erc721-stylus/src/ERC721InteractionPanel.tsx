@@ -92,11 +92,26 @@ const ERC721_ABI = [
   "function getApproved(uint256 token_id) view returns (address)",
   "function isApprovedForAll(address owner, address operator) view returns (bool)",
   // StylusNFT Specific Functions (from lib.rs)
-  "function mint()",
+  "function mint() payable",
   "function mintTo(address to)",
-  "function safeMint(address to)",
+  "function safeMint(address to) payable",
   "function burn(uint256 token_id)",
+  "function batchMint(uint256 count) payable",
+  "function whitelistMint(bytes32[] proof) payable",
+  "function initialize(address owner, uint256 mintPrice, uint256 maxPerWallet)",
+  "function setPaused(bool paused)",
+  "function setMintPrice(uint256 price)",
+  "function setMaxPerWallet(uint256 max)",
+  "function setMerkleRoot(bytes32 root)",
+  "function getWalletMints(address wallet) view returns (uint256)",
+  "function isPaused() view returns (bool)",
+  "function getMintPrice() view returns (uint256)",
+  "function getMaxPerWallet() view returns (uint256)",
+  "function getMerkleRoot() view returns (bytes32)",
 ];
+
+/** Client-only gate for showing admin UI (not a security boundary on-chain). */
+const ADMIN_PANEL_PASSWORD = 'admin123';
 
 // Network-specific default contract addresses (only for networks where contracts are deployed)
 const DEFAULT_CONTRACT_ADDRESSES: Record<string, string | undefined> = {
@@ -250,6 +265,19 @@ export function ERC721InteractionPanel({
   const [customAddressError, setCustomAddressError] = useState<string | null>(null);
   const [isValidatingContract, setIsValidatingContract] = useState(false);
   const [contractError, setContractError] = useState<string | null>(null);
+
+  const [batchCount, setBatchCount] = useState('1');
+  const [whitelistProof, setWhitelistProof] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const [adminMintPrice, setAdminMintPrice] = useState('');
+  const [adminMaxPerWallet, setAdminMaxPerWallet] = useState('');
+  const [adminMerkleRoot, setAdminMerkleRoot] = useState('');
+  const [isPausedState, setIsPausedState] = useState<boolean | null>(null);
+  const [adminControlsUnlocked, setAdminControlsUnlocked] = useState(false);
+  const [showAdminUnlockForm, setShowAdminUnlockForm] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminUnlockError, setAdminUnlockError] = useState<string | null>(null);
 
   // Check if using the default contract for the selected network
   const defaultAddress = DEFAULT_CONTRACT_ADDRESSES[selectedNetwork];
@@ -439,6 +467,32 @@ export function ERC721InteractionPanel({
           setContractError(parseContractError(balanceError));
         }
       }
+
+      try {
+        const [pausedR, priceR, maxR] = await Promise.all([
+          contract.isPaused().catch(() => null),
+          contract.getMintPrice().catch(() => null),
+          contract.getMaxPerWallet().catch(() => null),
+        ]);
+        if (typeof pausedR === 'boolean') {
+          setIsPausedState(pausedR);
+        } else {
+          setIsPausedState(null);
+        }
+        if (priceR != null) {
+          try {
+            setAdminMintPrice(ethers.formatEther(priceR));
+          } catch {
+            setAdminMintPrice('');
+          }
+        }
+        if (maxR != null) {
+          setAdminMaxPerWallet(maxR.toString());
+        }
+      } catch {
+        setIsPausedState(null);
+      }
+
       setIsConnected(true);
     } catch (error: any) {
       console.error('Error:', error);
@@ -497,9 +551,19 @@ export function ERC721InteractionPanel({
         console.error('[ERC721] getWriteContract returned null');
         return;
       }
+      const read = getReadContract();
+      let value = 0n;
+      if (read) {
+        try {
+          const p = await read.getMintPrice();
+          value = BigInt(p.toString());
+        } catch {
+          value = 0n;
+        }
+      }
       console.log('[ERC721] Got contract, calling mint()...');
       handleTransaction(
-        () => contract.mint(),
+        () => contract.mint({ value }),
         'NFT minted to yourself!'
       );
     } catch (error: any) {
@@ -530,8 +594,18 @@ export function ERC721InteractionPanel({
     try {
       const contract = await getWriteContract();
       if (!contract || !safeMintToAddress) return;
+      const read = getReadContract();
+      let value = 0n;
+      if (read) {
+        try {
+          const p = await read.getMintPrice();
+          value = BigInt(p.toString());
+        } catch {
+          value = 0n;
+        }
+      }
       handleTransaction(
-        () => contract['safeMint(address)'](safeMintToAddress),
+        () => contract['safeMint(address)'](safeMintToAddress, { value }),
         'NFT safely minted!'
       );
     } catch (error: any) {
@@ -601,6 +675,56 @@ export function ERC721InteractionPanel({
     } catch (error: any) {
       console.error('[ERC721] handleBurn error:', error);
       setTxStatus({ status: 'error', message: error.message || 'Failed to prepare transaction' });
+      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+    }
+  };
+
+  const handleBatchMint = async () => {
+    try {
+      const contract = await getWriteContract();
+      if (!contract) return;
+      const count = parseInt(batchCount, 10);
+      if (Number.isNaN(count) || count < 1 || count > 20) return;
+      const read = getReadContract();
+      let unit = 0n;
+      if (read) {
+        try {
+          unit = BigInt((await read.getMintPrice()).toString());
+        } catch {
+          unit = 0n;
+        }
+      }
+      const totalCost = unit * BigInt(count);
+      handleTransaction(
+        () => contract.batchMint(count, { value: totalCost }),
+        `${count} NFT${count > 1 ? 's' : ''} minted!`
+      );
+    } catch (error: any) {
+      setTxStatus({ status: 'error', message: error.message || 'Failed' });
+      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+    }
+  };
+
+  const handleWhitelistMint = async () => {
+    try {
+      const contract = await getWriteContract();
+      if (!contract || !whitelistProof.trim()) return;
+      const proofArray = whitelistProof.split(',').map((p) => p.trim()).filter(Boolean);
+      const read = getReadContract();
+      let value = 0n;
+      if (read) {
+        try {
+          value = BigInt((await read.getMintPrice()).toString());
+        } catch {
+          value = 0n;
+        }
+      }
+      handleTransaction(
+        () => contract.whitelistMint(proofArray, { value }),
+        'Whitelist mint successful!'
+      );
+    } catch (error: any) {
+      setTxStatus({ status: 'error', message: error.message || 'Failed' });
       setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
     }
   };
@@ -845,29 +969,47 @@ export function ERC721InteractionPanel({
         </div>
       )} */}
 
-      {/* Transaction Status */}
+      {walletConnected && currentChain?.id !== networkConfig.chainId && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-400 bg-amber-50 px-4 py-3 shadow-sm">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+          <div className="flex-1 text-sm text-amber-900">
+            <span className="font-semibold">Wrong network.</span> Your wallet is on{' '}
+            <span className="font-mono">{currentChain?.name ?? 'unknown'}</span> but this contract is on{' '}
+            <span className="font-mono">{networkConfig.name}</span>.
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!switchChainAsync) return;
+              try {
+                await switchChainAsync({ chainId: networkConfig.chainId });
+              } catch {
+                /* user rejected or unsupported */
+              }
+            }}
+            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-400"
+          >
+            Switch network
+          </button>
+        </div>
+      )}
+
       {txStatus.status !== 'idle' && (
         <div className={cn(
-          BOX,
-          'flex items-start gap-3',
-          txStatus.status === 'pending' && 'border-brandBlue-500 bg-brandBlue-100/60',
-          txStatus.status === 'success' && 'border-emerald-500 bg-emerald-50',
-          txStatus.status === 'error' && 'border-red-400 bg-red-50'
+          'fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-3 rounded-xl border px-4 py-3 shadow-xl transition-all',
+          txStatus.status === 'pending' && 'border-brandBlue-400 bg-brandBlue-900 text-white',
+          txStatus.status === 'success' && 'border-emerald-400 bg-emerald-900 text-white',
+          txStatus.status === 'error' && 'border-red-400 bg-red-900 text-white'
         )}>
-          {txStatus.status === 'pending' && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brandBlue-700" />}
-          {txStatus.status === 'success' && <Check className="h-5 w-5 shrink-0 text-emerald-700" />}
-          {txStatus.status === 'error' && <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />}
+          {txStatus.status === 'pending' && <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-brandBlue-300" />}
+          {txStatus.status === 'success' && <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />}
+          {txStatus.status === 'error' && <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />}
           <div className="min-w-0 flex-1">
-            <p className={cn(
-              'text-sm font-medium',
-              txStatus.status === 'pending' && 'text-brandBlue-900',
-              txStatus.status === 'success' && 'text-emerald-900',
-              txStatus.status === 'error' && 'text-red-900'
-            )}>{txStatus.message}</p>
+            <p className="text-sm font-medium">{txStatus.message}</p>
             {txStatus.hash && (
               <a href={`${explorerUrl}/tx/${txStatus.hash}`} target="_blank" rel="noopener noreferrer"
-                className="mt-1 flex items-center gap-1 text-xs text-brandBlue-800 hover:underline">
-                View on explorer <ExternalLink className="h-3.5 w-3.5" />
+                className="mt-1 flex items-center gap-1 text-xs opacity-80 hover:opacity-100 hover:underline">
+                View on explorer <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
@@ -1024,8 +1166,81 @@ export function ERC721InteractionPanel({
             </div>
           </div>
           </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm font-semibold text-brandBlue-800 hover:text-brandBlue-600"
+            >
+              {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              Advanced mint options
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className={cn(BOX, OP_CARD)}>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-brandBlue-700" />
+                    <span className="text-base font-semibold text-slate-900">Batch mint</span>
+                  </div>
+                  <div className={OP_MAIN}>
+                    <p className="text-xs text-slate-600">Mint multiple NFTs in one transaction. Max 20 per tx.</p>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={batchCount}
+                      onChange={(e) => setBatchCount(e.target.value)}
+                      placeholder="Count (1–20)"
+                      className={INPUT}
+                    />
+                  </div>
+                  <div className={OP_FOOTER}>
+                    <button
+                      type="button"
+                      onClick={handleBatchMint}
+                      disabled={txStatus.status === 'pending'}
+                      className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}
+                    >
+                      Batch mint
+                    </button>
+                  </div>
+                </div>
+
+                <div className={cn(BOX, OP_CARD)}>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Shield className="h-5 w-5 text-brandBlue-700" />
+                    <span className="text-base font-semibold text-slate-900">Whitelist mint</span>
+                  </div>
+                  <div className={OP_MAIN}>
+                    <p className="text-xs text-slate-600">Mint using a Merkle proof. Paste comma-separated proof hashes.</p>
+                    <textarea
+                      value={whitelistProof}
+                      onChange={(e) => setWhitelistProof(e.target.value)}
+                      placeholder="0xabc..., 0xdef..., ..."
+                      rows={3}
+                      className={cn(INPUT, 'resize-none')}
+                    />
+                  </div>
+                  <div className={OP_FOOTER}>
+                    <button
+                      type="button"
+                      onClick={handleWhitelistMint}
+                      disabled={txStatus.status === 'pending'}
+                      className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}
+                    >
+                      Whitelist mint
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
+
 
       {/* Read Operations — xl: single row of 4 */}
       {isConnected && (
@@ -1133,6 +1348,265 @@ export function ERC721InteractionPanel({
               </button>
             </div>
           </div>
+          </div>
+
+          <div className={cn(BOX, 'space-y-3')}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Admin UI</p>
+            {adminControlsUnlocked ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-emerald-800">Admin controls are visible for this session.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminControlsUnlocked(false);
+                    setShowAdminUnlockForm(false);
+                    setAdminPasswordInput('');
+                    setAdminUnlockError(null);
+                  }}
+                  className={cn(BTN, 'shrink-0 bg-slate-600 hover:bg-slate-500 sm:w-auto sm:min-w-[8rem]')}
+                >
+                  Hide admin
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {!showAdminUnlockForm ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdminUnlockForm(true);
+                      setAdminUnlockError(null);
+                    }}
+                    className={cn(BTN, 'bg-brandBlue-800 hover:bg-brandBlue-700')}
+                  >
+                    Enable admin control
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <label htmlFor="admin-panel-password" className="text-xs font-medium text-slate-700">
+                        Password
+                      </label>
+                      <input
+                        id="admin-panel-password"
+                        type="password"
+                        autoComplete="off"
+                        value={adminPasswordInput}
+                        onChange={(e) => {
+                          setAdminPasswordInput(e.target.value);
+                          setAdminUnlockError(null);
+                        }}
+                        placeholder="Enter password"
+                        className={INPUT}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (adminPasswordInput === ADMIN_PANEL_PASSWORD) {
+                            setAdminControlsUnlocked(true);
+                            setShowAdminUnlockForm(false);
+                            setAdminPasswordInput('');
+                            setAdminUnlockError(null);
+                          } else {
+                            setAdminUnlockError('Incorrect password');
+                          }
+                        }}
+                        className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600 sm:w-auto sm:min-w-[6rem]')}
+                      >
+                        Unlock
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAdminUnlockForm(false);
+                          setAdminPasswordInput('');
+                          setAdminUnlockError(null);
+                        }}
+                        className={cn(BTN, 'bg-slate-500 hover:bg-slate-400 sm:w-auto sm:min-w-[6rem]')}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {adminUnlockError && (
+                  <p className="flex items-center gap-1.5 text-xs text-red-600">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    {adminUnlockError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isConnected && walletConnected && adminControlsUnlocked && (
+        <div className="space-y-4">
+          <h2 className="flex items-center gap-2 border-b border-brandBlue-400 pb-2 text-lg font-bold text-brandBlue-900">
+            <Shield className="h-5 w-5 text-brandBlue-800" />
+            Admin controls
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className={cn(BOX, OP_CARD)}>
+              <span className="shrink-0 text-base font-semibold text-slate-900">Pause contract</span>
+              <div className={OP_MAIN}>
+                <p className="text-xs text-slate-600">Pause or unpause all minting operations.</p>
+                {isPausedState !== null && (
+                  <div className={cn(
+                    'rounded-lg border px-3 py-2 text-xs font-semibold',
+                    isPausedState ? 'border-red-300 bg-red-50 text-red-800' : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  )}>
+                    {isPausedState ? '⏸ Contract is paused' : '▶ Contract is active'}
+                  </div>
+                )}
+              </div>
+              <div className={cn(OP_FOOTER, 'flex gap-2')}>
+                <button
+                  type="button"
+                  disabled={txStatus.status === 'pending'}
+                  onClick={async () => {
+                    try {
+                      const c = await getWriteContract();
+                      if (c) handleTransaction(() => c.setPaused(true), 'Contract paused');
+                    } catch (e: unknown) {
+                      setTxStatus({ status: 'error', message: e instanceof Error ? e.message : 'Failed' });
+                      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+                    }
+                  }}
+                  className={cn(BTN, 'flex-1 bg-red-600 hover:bg-red-500')}
+                >
+                  Pause
+                </button>
+                <button
+                  type="button"
+                  disabled={txStatus.status === 'pending'}
+                  onClick={async () => {
+                    try {
+                      const c = await getWriteContract();
+                      if (c) handleTransaction(() => c.setPaused(false), 'Contract unpaused');
+                    } catch (e: unknown) {
+                      setTxStatus({ status: 'error', message: e instanceof Error ? e.message : 'Failed' });
+                      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+                    }
+                  }}
+                  className={cn(BTN, 'flex-1 bg-emerald-600 hover:bg-emerald-500')}
+                >
+                  Unpause
+                </button>
+              </div>
+            </div>
+
+            <div className={cn(BOX, OP_CARD)}>
+              <span className="shrink-0 text-base font-semibold text-slate-900">Mint price</span>
+              <div className={OP_MAIN}>
+                <p className="text-xs text-slate-600">Set price in ETH per mint. Use 0 for free minting.</p>
+                <input
+                  type="text"
+                  value={adminMintPrice}
+                  onChange={(e) => setAdminMintPrice(e.target.value)}
+                  placeholder="e.g. 0.01"
+                  className={INPUT}
+                />
+              </div>
+              <div className={OP_FOOTER}>
+                <button
+                  type="button"
+                  disabled={txStatus.status === 'pending'}
+                  onClick={async () => {
+                    try {
+                      const c = await getWriteContract();
+                      if (c && adminMintPrice) {
+                        const wei = ethers.parseEther(adminMintPrice);
+                        handleTransaction(
+                          () => c.setMintPrice(wei),
+                          `Mint price set to ${adminMintPrice} ETH`
+                        );
+                      }
+                    } catch (e: unknown) {
+                      setTxStatus({ status: 'error', message: e instanceof Error ? e.message : 'Failed' });
+                      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+                    }
+                  }}
+                  className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}
+                >
+                  Set price
+                </button>
+              </div>
+            </div>
+
+            <div className={cn(BOX, OP_CARD)}>
+              <span className="shrink-0 text-base font-semibold text-slate-900">Max per wallet</span>
+              <div className={OP_MAIN}>
+                <p className="text-xs text-slate-600">Limit NFTs per wallet. Set 0 for unlimited.</p>
+                <input
+                  type="number"
+                  value={adminMaxPerWallet}
+                  onChange={(e) => setAdminMaxPerWallet(e.target.value)}
+                  placeholder="e.g. 5"
+                  className={INPUT}
+                />
+              </div>
+              <div className={OP_FOOTER}>
+                <button
+                  type="button"
+                  disabled={txStatus.status === 'pending'}
+                  onClick={async () => {
+                    try {
+                      const c = await getWriteContract();
+                      if (c && adminMaxPerWallet !== '') {
+                        handleTransaction(
+                          () => c.setMaxPerWallet(BigInt(adminMaxPerWallet)),
+                          `Max set to ${adminMaxPerWallet}`
+                        );
+                      }
+                    } catch (e: unknown) {
+                      setTxStatus({ status: 'error', message: e instanceof Error ? e.message : 'Failed' });
+                      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+                    }
+                  }}
+                  className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}
+                >
+                  Set limit
+                </button>
+              </div>
+            </div>
+
+            <div className={cn(BOX, OP_CARD)}>
+              <span className="shrink-0 text-base font-semibold text-slate-900">Whitelist root</span>
+              <div className={OP_MAIN}>
+                <p className="text-xs text-slate-600">Set Merkle root to enable whitelist. Set to 0x000...0 to disable.</p>
+                <input
+                  type="text"
+                  value={adminMerkleRoot}
+                  onChange={(e) => setAdminMerkleRoot(e.target.value)}
+                  placeholder="0x..."
+                  className={INPUT}
+                />
+              </div>
+              <div className={OP_FOOTER}>
+                <button
+                  type="button"
+                  disabled={txStatus.status === 'pending'}
+                  onClick={async () => {
+                    try {
+                      const c = await getWriteContract();
+                      if (c && adminMerkleRoot) {
+                        handleTransaction(() => c.setMerkleRoot(adminMerkleRoot), 'Merkle root updated');
+                      }
+                    } catch (e: unknown) {
+                      setTxStatus({ status: 'error', message: e instanceof Error ? e.message : 'Failed' });
+                      setTimeout(() => setTxStatus({ status: 'idle', message: '' }), 5000);
+                    }
+                  }}
+                  className={cn(BTN, 'bg-brandBlue-700 hover:bg-brandBlue-600')}
+                >
+                  Set root
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
